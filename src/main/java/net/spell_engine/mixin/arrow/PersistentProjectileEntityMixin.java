@@ -62,15 +62,19 @@ public abstract class PersistentProjectileEntityMixin implements ArrowExtension 
 
     private List<RegistryEntry<Spell>> cachedSpellEntry = List.of();
     @Nullable List<RegistryEntry<Spell>> spellEntries() {
-        if (cachedSpellEntry == null || cachedSpellEntry.size() != spellIds.size()) {
-            var entries = spellIds.stream()
-                    .map(id -> {
-                        var reference = SpellRegistry.from(arrow().getWorld()).getEntry(id).orElse(null);
-                        return (RegistryEntry<Spell>)reference;
-                    })
-                    .toList();
-            cachedSpellEntry = entries;
-        }
+        if (spellIds != null) {
+            if (cachedSpellEntry == null || cachedSpellEntry.size() != spellIds.size()) {
+                var entries = spellIds.stream()
+                        .map(id -> {
+                            var reference = SpellRegistry.from(arrow().getWorld()).getEntry(id).orElse(null);
+                            return (RegistryEntry<Spell>) reference;
+                        })
+                        .toList();
+                cachedSpellEntry = entries;
+            }
+    	} else {
+			cachedSpellEntry = List.of();
+		}
         return cachedSpellEntry;
     }
 
@@ -87,9 +91,11 @@ public abstract class PersistentProjectileEntityMixin implements ArrowExtension 
 
     @Inject(method = "writeCustomDataToNbt", at = @At("TAIL"))
     public void writeCustomDataToNbt_TAIL_SpellEngine(NbtCompound nbt, CallbackInfo ci) {
-        var stringList = this.spellIds.stream().map(Identifier::toString).toList();
-        var json = gson.toJson(stringList);
-        nbt.putString(NBT_KEY_SPELL_ID, json);
+        if (this.spellIds != null) {
+            var stringList = this.spellIds.stream().map(Identifier::toString).toList();
+            var json = gson.toJson(stringList);
+            nbt.putString(NBT_KEY_SPELL_ID, json);
+        }
     }
 
     @Inject(method = "readCustomDataFromNbt", at = @At("TAIL"))
@@ -117,7 +123,7 @@ public abstract class PersistentProjectileEntityMixin implements ArrowExtension 
     private void tick_HEAD_SpellEngine(CallbackInfo ci) {
         var arrow = arrow();
         var world = arrow.getWorld();
-        if (world.isClient && this.spellIds.isEmpty()) {
+        if (world.isClient && this.spellIds != null && this.spellIds.isEmpty()) {
             var json = arrow().getDataTracker().get(SPELL_ID_TRACKER);
             if (json.isEmpty()) {
                 return;
